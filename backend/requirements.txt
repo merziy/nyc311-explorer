@@ -2,6 +2,7 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 tortoise-orm[asyncpg]==0.23.0
 aerich==0.8.1
+tomlkit==0.13.2
 pydantic-settings==2.7.1
 httpx==0.28.1
 anthropic==0.42.0
