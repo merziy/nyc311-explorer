@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nyc311-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nyc311
+      POSTGRES_PASSWORD: nyc311
+      POSTGRES_DB: nyc311
+    ports:
+      - "5432:5432"
+    volumes:
+      - nyc311_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nyc311 -d nyc311"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  nyc311_pgdata:

@@ -1,0 +1,29 @@
+## Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+## Node / Vue
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+## Env
+.env
+.env.*
+!.env.example
+
+## Postgres data volume (if run bind-mounted anywhere)
+pgdata/
+
+## Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+## Logs
+*.log
+npm-debug.log*
