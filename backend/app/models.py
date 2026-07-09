@@ -1,10 +1,9 @@
-from enum import Enum
+import enum
 
-from tortoise import fields
-from tortoise.models import Model
+from app.extensions import db
 
 
-class Borough(str, Enum):
+class Borough(str, enum.Enum):
     MANHATTAN = "MANHATTAN"
     BRONX = "BRONX"
     BROOKLYN = "BROOKLYN"
@@ -12,25 +11,36 @@ class Borough(str, Enum):
     STATEN_ISLAND = "STATEN ISLAND"
 
 
-class Complaint(Model):
-    unique_key = fields.BigIntField(pk=True, generated=False)
-    created_date = fields.DatetimeField(index=True)
-    closed_date = fields.DatetimeField(null=True)
-    complaint_type = fields.TextField()
-    descriptor = fields.TextField(null=True)
-    borough = fields.CharEnumField(Borough, max_length=20, null=True)
-    incident_zip = fields.TextField(null=True)
-    agency = fields.TextField(null=True)
-    status = fields.TextField(null=True)
-    latitude = fields.FloatField(null=True)
-    longitude = fields.FloatField(null=True)
+class Complaint(db.Model):
+    __tablename__ = "complaints"
 
-    class Meta:
-        table = "complaints"
-        indexes = (
-            ("borough", "created_date"),
-            ("complaint_type", "created_date"),
-        )
+    unique_key = db.Column(db.BigInteger, primary_key=True, autoincrement=False)
+    created_date = db.Column(db.DateTime(timezone=True), nullable=False)
+    closed_date = db.Column(db.DateTime(timezone=True), nullable=True)
+    complaint_type = db.Column(db.Text, nullable=False)
+    descriptor = db.Column(db.Text, nullable=True)
+    borough = db.Column(
+        db.Enum(
+            Borough,
+            name="borough",
+            native_enum=False,
+            length=20,
+            create_constraint=True,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        nullable=True,
+    )
+    incident_zip = db.Column(db.Text, nullable=True)
+    agency = db.Column(db.Text, nullable=True)
+    status = db.Column(db.Text, nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
 
-    def __str__(self) -> str:
+    __table_args__ = (
+        db.Index("idx_complaints_created_date", "created_date"),
+        db.Index("idx_complaints_borough_created_date", "borough", "created_date"),
+        db.Index("idx_complaints_complaint_type_created_date", "complaint_type", "created_date"),
+    )
+
+    def __repr__(self) -> str:
         return f"Complaint({self.unique_key})"
