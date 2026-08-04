@@ -1,0 +1,113 @@
+"""Pull NYC 311 complaints from the Socrata API and upsert them into Postgres.
+
+Standalone script, not part of the Flask request path — run manually:
+
+    cd backend && .venv/bin/python -m scripts.ingest_311
+
+Pulls the last MONTHS_BACK months of "311 Service Requests" (dataset erm2-nwe9)
+and upserts by unique_key, so re-running is always safe.
+
+Uses keyset pagination (WHERE unique_key > last_seen), not offset pagination —
+Socrata's own docs warn that OFFSET gets slow past tens of thousands of rows,
+and even a 3-month pull is realistically a few hundred thousand rows.
+"""
+
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+import httpx
+from sqlalchemy.dialects.postgresql import insert
+
+from app import create_app
+from app.config import settings
+from app.extensions import db
+from app.models import Borough, Complaint
+
+DATASET_URL = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
+PAGE_SIZE = 1000
+MONTHS_BACK = 3
+NYC_TZ = ZoneInfo("America/New_York")
+
+
+def parse_socrata_datetime(value: str | None) -> datetime | None:
+    """Socrata returns naive local (America/New_York) timestamps, e.g. '2024-03-01T14:22:07.000'."""
+    if not value:
+        return None
+    naive = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f")
+    return naive.replace(tzinfo=NYC_TZ)
+
+
+def normalize_borough(value: str | None) -> Borough | None:
+    if not value:
+        return None
+    try:
+        return Borough(value.strip().upper())
+    except ValueError:
+        return None
+
+
+def normalize_row(raw: dict) -> dict:
+    return {
+        "unique_key": int(raw["unique_key"]),
+        "created_date": parse_socrata_datetime(raw.get("created_date")),
+        "closed_date": parse_socrata_datetime(raw.get("closed_date")),
+        "complaint_type": raw.get("complaint_type", ""),
+        "descriptor": raw.get("descriptor"),
+        "borough": normalize_borough(raw.get("borough")),
+        "incident_zip": (raw.get("incident_zip") or "").strip() or None,
+        "agency": raw.get("agency"),
+        "status": raw.get("status"),
+        "latitude": float(raw["latitude"]) if raw.get("latitude") else None,
+        "longitude": float(raw["longitude"]) if raw.get("longitude") else None,
+    }
+
+
+def fetch_page(client: httpx.Client, since: str, last_unique_key: int) -> list[dict]:
+    params = {
+        "$where": f"created_date >= '{since}' AND unique_key > {last_unique_key}",
+        "$order": "unique_key ASC",
+        "$limit": PAGE_SIZE,
+    }
+    headers = {"X-App-Token": settings.socrata_app_token} if settings.socrata_app_token else {}
+    response = client.get(DATASET_URL, params=params, headers=headers, timeout=30.0)
+    response.raise_for_status()
+    return response.json()
+
+
+def upsert_batch(rows: list[dict]) -> None:
+    if not rows:
+        return
+    stmt = insert(Complaint).values(rows)
+    update_columns = {column.name: column for column in stmt.excluded if column.name != "unique_key"}
+    stmt = stmt.on_conflict_do_update(index_elements=["unique_key"], set_=update_columns)
+    db.session.execute(stmt)
+    db.session.commit()
+
+
+def run() -> None:
+    since = (datetime.now(timezone.utc) - timedelta(days=30 * MONTHS_BACK)).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+    last_unique_key = 0
+    total = 0
+
+    app = create_app()
+    with app.app_context():
+        with httpx.Client() as client:
+            while True:
+                raw_rows = fetch_page(client, since, last_unique_key)
+                if not raw_rows:
+                    break
+
+                rows = [normalize_row(r) for r in raw_rows if r.get("unique_key") and r.get("created_date")]
+                upsert_batch(rows)
+                total += len(rows)
+                last_unique_key = int(raw_rows[-1]["unique_key"])
+                print(f"Upserted {total} rows so far (last unique_key={last_unique_key})")
+
+                if len(raw_rows) < PAGE_SIZE:
+                    break
+
+    print(f"Done. {total} rows upserted.")
+
+
+if __name__ == "__main__":
+    run()
