@@ -18,7 +18,10 @@ lexicographic and numeric ordering agree - it would not hold for a pull
 spanning a digit-count boundary (e.g. many years back).
 """
 
+import json
+import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -33,6 +36,9 @@ DATASET_URL = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
 PAGE_SIZE = 1000
 MONTHS_BACK = 3
 NYC_TZ = ZoneInfo("America/New_York")
+CHECKPOINT_FILE = Path(__file__).parent / ".ingest_311_checkpoint.json"
+MAX_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 2
 
 
 def parse_socrata_datetime(value: str | None) -> datetime | None:
@@ -77,9 +83,31 @@ def fetch_page(client: httpx.Client, since: str, last_unique_key: int) -> list[d
         "$limit": PAGE_SIZE,
     }
     headers = {"X-App-Token": settings.socrata_app_token} if settings.socrata_app_token else {}
-    response = client.get(DATASET_URL, params=params, headers=headers, timeout=30.0)
-    response.raise_for_status()
-    return response.json()
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = client.get(DATASET_URL, params=params, headers=headers, timeout=60.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.TransportError:
+            if attempt == MAX_RETRIES:
+                raise
+            time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+
+
+def load_checkpoint() -> tuple[str, int] | None:
+    if not CHECKPOINT_FILE.exists():
+        return None
+    data = json.loads(CHECKPOINT_FILE.read_text())
+    return data["since"], data["last_unique_key"]
+
+
+def save_checkpoint(since: str, last_unique_key: int) -> None:
+    CHECKPOINT_FILE.write_text(json.dumps({"since": since, "last_unique_key": last_unique_key}))
+
+
+def clear_checkpoint() -> None:
+    CHECKPOINT_FILE.unlink(missing_ok=True)
 
 
 def upsert_batch(rows: list[dict]) -> None:
@@ -93,8 +121,14 @@ def upsert_batch(rows: list[dict]) -> None:
 
 
 def run() -> None:
-    since = (datetime.now(timezone.utc) - timedelta(days=30 * MONTHS_BACK)).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
-    last_unique_key = 0
+    checkpoint = load_checkpoint()
+    if checkpoint:
+        since, last_unique_key = checkpoint
+        print(f"Resuming from unique_key={last_unique_key}")
+    else:
+        since = (datetime.now(timezone.utc) - timedelta(days=30 * MONTHS_BACK)).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+        last_unique_key = 0
+
     total = 0
 
     app = create_app()
@@ -109,11 +143,13 @@ def run() -> None:
                 upsert_batch(rows)
                 total += len(rows)
                 last_unique_key = int(raw_rows[-1]["unique_key"])
+                save_checkpoint(since, last_unique_key)
                 print(f"Upserted {total} rows so far (last unique_key={last_unique_key})")
 
                 if len(raw_rows) < PAGE_SIZE:
                     break
 
+    clear_checkpoint()
     print(f"Done. {total} rows upserted.")
 
 

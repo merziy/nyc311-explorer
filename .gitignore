@@ -19,6 +19,9 @@ dist-ssr/
 ## Postgres data volume (if run bind-mounted anywhere)
 pgdata/
 
+## Ingestion checkpoint (local run state, not source)
+backend/scripts/.ingest_311_checkpoint.json
+
 ## Editors / OS
 .vscode/
 .idea/
