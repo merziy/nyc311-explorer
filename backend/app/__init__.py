@@ -12,6 +12,9 @@ def create_app() -> Flask:
     migrate.init_app(app, db)
 
     from app import models  # noqa: F401  (registers models with SQLAlchemy metadata)
+    from app.routes import api_bp
+
+    app.register_blueprint(api_bp)
 
     @app.get("/health")
     def health() -> dict[str, str]:
