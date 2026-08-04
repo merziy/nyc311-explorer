@@ -11,12 +11,11 @@ Uses keyset pagination (WHERE unique_key > last_seen), not offset pagination —
 Socrata's own docs warn that OFFSET gets slow past tens of thousands of rows,
 and even a 3-month pull is realistically a few hundred thousand rows.
 
-unique_key is typed as Text in Socrata's schema (confirmed by hitting the live
-API - comparing it as a number returns a query.soql.type-mismatch error), so
-the cursor is compared and ordered as a string. That's only safe because all
-unique_key values within a recent, short (MONTHS_BACK) window share the same
-digit count, so lexicographic and numeric ordering agree. It would NOT be
-safe for a pull spanning a digit-count boundary (e.g. many years back).
+unique_key is typed as Text in Socrata's schema, not Number, so the cursor is
+compared and ordered as a string. That's only safe because unique_key values
+within a recent, short (MONTHS_BACK) window share the same digit count, so
+lexicographic and numeric ordering agree - it would not hold for a pull
+spanning a digit-count boundary (e.g. many years back).
 """
 
 from datetime import datetime, timedelta, timezone

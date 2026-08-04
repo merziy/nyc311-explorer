@@ -56,6 +56,10 @@ No test suite, linter, or CI config exists yet.
 
 **Planned but not yet built** (referenced here so schema decisions above make sense): a standalone ingestion script pulling from NYC's Socrata API and upserting into `complaints`; a `/api/ask` endpoint where Claude does NL→structured-filter (tool-use, not raw SQL generation) and structured-results→English summary, running against a parameterized query the backend controls; a Vue 3 + Vite frontend.
 
+## Code style
+
+No narrative comments — nothing that reads like a debugging log or tells the story of how a bug was found ("confirmed by hitting the live API", "this used to fail because..."). A comment should state a fact or a non-obvious constraint as if it were always true, not narrate the process that led to it. Prefer no comment at all unless the WHY genuinely isn't obvious from the code.
+
 ## Git conventions
 
 Every commit should include a `Co-authored-by: merziy <alexzandermathis@gmail.com>` trailer in addition to the normal author. A local `prepare-commit-msg` hook does this automatically, but that hook lives in `.git/hooks/` and is **not tracked by git** — it won't exist in a fresh clone/session, so add the trailer by hand if it's missing.
