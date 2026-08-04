@@ -10,6 +10,13 @@ and upserts by unique_key, so re-running is always safe.
 Uses keyset pagination (WHERE unique_key > last_seen), not offset pagination —
 Socrata's own docs warn that OFFSET gets slow past tens of thousands of rows,
 and even a 3-month pull is realistically a few hundred thousand rows.
+
+unique_key is typed as Text in Socrata's schema (confirmed by hitting the live
+API - comparing it as a number returns a query.soql.type-mismatch error), so
+the cursor is compared and ordered as a string. That's only safe because all
+unique_key values within a recent, short (MONTHS_BACK) window share the same
+digit count, so lexicographic and numeric ordering agree. It would NOT be
+safe for a pull spanning a digit-count boundary (e.g. many years back).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -64,7 +71,9 @@ def normalize_row(raw: dict) -> dict:
 
 def fetch_page(client: httpx.Client, since: str, last_unique_key: int) -> list[dict]:
     params = {
-        "$where": f"created_date >= '{since}' AND unique_key > {last_unique_key}",
+        # unique_key is typed as Text in Socrata's schema, not Number — the
+        # cursor value must be quoted or the API returns a type-mismatch 400.
+        "$where": f"created_date >= '{since}' AND unique_key > '{last_unique_key}'",
         "$order": "unique_key ASC",
         "$limit": PAGE_SIZE,
     }
