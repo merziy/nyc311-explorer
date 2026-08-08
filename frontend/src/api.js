@@ -28,3 +28,16 @@ export async function fetchSummary(filters, limit) {
   }
   return response.json()
 }
+
+export async function askQuestion(question) {
+  const response = await fetch(`${API_BASE}/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || `askQuestion failed: ${response.status}`)
+  }
+  return data
+}
