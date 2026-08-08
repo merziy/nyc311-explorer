@@ -63,32 +63,95 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
 })
+
+function statusClass(status) {
+  if (status === 'Open') return 'status-open'
+  if (status === 'Closed') return 'status-closed'
+  return ''
+}
 </script>
 
 <template>
-  <div class="complaints-table">
+  <div class="complaints-table card">
     <p v-if="error" class="error">{{ error }}</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Type</th>
-          <th>Borough</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="c in results" :key="c.unique_key">
-          <td>{{ c.created_date?.slice(0, 10) }}</td>
-          <td>{{ c.complaint_type }}</td>
-          <td>{{ c.borough || '—' }}</td>
-          <td>{{ c.status || '—' }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-if="loading">Loading…</p>
-    <p v-if="!loading && results.length > 0 && results.length >= total">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Borough</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in results" :key="c.unique_key">
+            <td>{{ c.created_date?.slice(0, 10) }}</td>
+            <td>{{ c.complaint_type }}</td>
+            <td>{{ c.borough || '—' }}</td>
+            <td>
+              <span class="status-pill" :class="statusClass(c.status)">{{ c.status || '—' }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p v-if="loading" class="status-line">Loading…</p>
+    <p v-if="!loading && results.length > 0 && results.length >= total" class="status-line">
       Showing all {{ total }} results.
     </p>
   </div>
 </template>
+
+<style scoped>
+.table-scroll {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-h);
+  white-space: nowrap;
+}
+tbody tr:last-child td {
+  border-bottom: none;
+}
+tbody tr:hover {
+  background: var(--surface-hover);
+}
+.status-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--closed-bg);
+  color: var(--closed-text);
+}
+.status-pill.status-open {
+  background: var(--open-bg);
+  color: var(--open-text);
+}
+.status-pill.status-closed {
+  background: var(--closed-bg);
+  color: var(--closed-text);
+}
+.status-line {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--text);
+}
+</style>
