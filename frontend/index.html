@@ -4,7 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>NYC 311 Explorer</title>
+    <script>
+      (function () {
+        var stored = localStorage.getItem('nyc311-theme')
+        if (stored) document.documentElement.dataset.theme = stored
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

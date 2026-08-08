@@ -21,7 +21,7 @@ watch([borough, complaintType, start, end], () => {
 </script>
 
 <template>
-  <div class="filter-bar">
+  <div class="filter-bar card">
     <select v-model="borough">
       <option value="">All boroughs</option>
       <option v-for="b in boroughs" :key="b" :value="b">{{ b }}</option>
@@ -44,6 +44,12 @@ watch([borough, complaintType, start, end], () => {
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
-  padding: 1rem 0;
+}
+label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 14px;
+  color: var(--text);
 }
 </style>

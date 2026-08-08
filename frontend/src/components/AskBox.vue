@@ -25,7 +25,7 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="ask-box">
+  <div class="ask-box card">
     <h2>Ask a question</h2>
     <form @submit.prevent="onSubmit">
       <input
@@ -43,9 +43,6 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-.ask-box {
-  padding: 1rem 0;
-}
 form {
   display: flex;
   gap: 0.75rem;
@@ -54,10 +51,10 @@ input {
   flex: 1;
 }
 .answer {
-  margin-top: 0.75rem;
+  margin-top: 0.9rem;
+  line-height: 1.6;
 }
 .error {
   margin-top: 0.75rem;
-  color: #c0392b;
 }
 </style>
