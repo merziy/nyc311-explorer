@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-// maplibre-gl has no default export, only named ones (Map, Popup, ...)
-import * as maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl' // see CLAUDE.md, "Map view"
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useTheme } from '../composables/useTheme'
 import { fetchComplaintPoints, fetchComplaint } from '../api'

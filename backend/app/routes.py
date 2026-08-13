@@ -269,10 +269,7 @@ def ask():
     if filter_args.get("mode") == "list":
         complaint_type = filter_args.get("complaint_type")
         if complaint_type:
-            # Claude's guess rarely matches the stored complaint_type verbatim
-            # (e.g. "Noise - Party" vs the real "Noise - Residential" / descriptor
-            # "Loud Music/Party") - require each word somewhere in either field,
-            # rather than the whole phrase as one substring.
+            # see CLAUDE.md, "POST /api/ask"
             for word in re.findall(r"\w+", complaint_type):
                 if len(word) <= 2:
                     continue
