@@ -5,10 +5,13 @@ import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useTheme } from '../composables/useTheme'
 import { fetchComplaintPoints, fetchBoroughSummary } from '../api'
+import AskBox from './AskBox.vue'
+import FilterBar from './FilterBar.vue'
 
 const props = defineProps({
   filters: { type: Object, required: true },
 })
+const emit = defineEmits(['filters-change'])
 
 const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
@@ -236,8 +239,10 @@ onMounted(async () => {
     zoom: 9.3,
     attributionControl: false,
   })
-  map.addControl(new maplibregl.NavigationControl(), 'top-right')
-  map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right')
+  // NavigationControl goes bottom-right, not top-right: the overlay panel
+  // already occupies that corner. No separate AttributionControl either -
+  // the required credit is the "Basemap © OpenStreetMap..." text below.
+  map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
   if (import.meta.env.DEV) window.__map = map
 
   map.on('error', (e) => {
@@ -285,8 +290,15 @@ watch(theme, () => {
 </script>
 
 <template>
-  <div class="map-view card">
-    <div class="map-header">
+  <div class="map-shell">
+    <div ref="mapContainer" class="map-canvas"></div>
+
+    <div class="overlay overlay-left">
+      <AskBox />
+      <FilterBar @change="emit('filters-change', $event)" />
+    </div>
+
+    <div class="overlay overlay-right card">
       <h2>Map view</h2>
       <div class="tabs">
         <button
@@ -299,33 +311,73 @@ watch(theme, () => {
           {{ m.label }}
         </button>
       </div>
+      <p class="mode-desc">{{ MODES[mode].desc }}{{ loading ? ' Loading…' : '' }}</p>
+      <p v-if="error" class="error">{{ error }}</p>
+
+      <div class="legend">
+        <div v-if="mode !== 'clusters'" class="legend-scale">
+          <span>{{ mode === 'heatmap' ? 'Fewer' : 'Fewest' }}</span>
+          <div class="bar"></div>
+          <span>{{ mode === 'heatmap' ? 'More' : 'Most' }}</span>
+        </div>
+        <div v-else class="type-legend">
+          <span><i class="dot dot-cluster"></i>Cluster (zoom in to split)</span>
+          <span><i class="dot dot-single"></i>Individual complaint</span>
+        </div>
+      </div>
+
+      <p class="map-note">
+        Basemap &copy;
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+        contributors, tiles via
+        <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>.
+      </p>
     </div>
-    <p class="mode-desc">{{ MODES[mode].desc }}{{ loading ? ' Loading…' : '' }}</p>
-    <p v-if="error" class="error">{{ error }}</p>
-    <div ref="mapContainer" class="map-container"></div>
-    <p class="map-note">
-      Basemap &copy;
-      <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
-      contributors, tiles via
-      <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>.
-    </p>
   </div>
 </template>
 
 <style scoped>
-.map-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
+.map-shell {
+  position: relative;
+  height: min(680px, 82vh);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
-.map-header h2 {
-  margin-bottom: 0;
+.map-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.overlay {
+  position: absolute;
+  top: 16px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+}
+.overlay-left {
+  left: 16px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+}
+.overlay-right {
+  right: 16px;
+  width: 260px;
+  max-width: calc(100% - 32px);
+  padding: 16px;
+}
+
+.overlay-right h2 {
+  margin-bottom: 10px;
 }
 .tabs {
   display: flex;
+  flex-direction: column;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -337,27 +389,91 @@ watch(theme, () => {
   color: var(--text);
   font-size: 13px;
   font-weight: 550;
-  padding: 6px 12px;
+  padding: 7px 10px;
+  text-align: left;
 }
 .tabs button.active {
   background: var(--accent);
   color: var(--accent-text);
 }
 .mode-desc {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text);
-  margin: 12px 0;
+  margin: 10px 0 0;
   line-height: 1.5;
 }
-.map-container {
-  height: 460px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--border);
+.legend {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
-.map-note {
-  margin-top: 10px;
+.legend-scale {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11.5px;
   color: var(--text);
+}
+.legend-scale .bar {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--heat-1), var(--heat-2), var(--heat-3), var(--heat-4));
+}
+.type-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+.type-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.dot-cluster {
+  background: var(--heat-2);
+}
+.dot-single {
+  background: var(--heat-1);
+}
+.map-note {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text);
+}
+
+@media (max-width: 760px) {
+  .map-shell {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .map-canvas {
+    position: relative;
+    height: 420px;
+  }
+  .overlay {
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
+  .overlay-right {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
 }
 </style>
