@@ -65,6 +65,7 @@ def normalize_row(raw: dict) -> dict:
         "closed_date": parse_socrata_datetime(raw.get("closed_date")),
         "complaint_type": raw.get("complaint_type", ""),
         "descriptor": raw.get("descriptor"),
+        "resolution_description": raw.get("resolution_description"),
         "borough": normalize_borough(raw.get("borough")),
         "incident_zip": (raw.get("incident_zip") or "").strip() or None,
         "agency": raw.get("agency"),

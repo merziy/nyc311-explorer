@@ -102,7 +102,7 @@ function statusClass(status) {
           <tr v-for="c in results" :key="c.unique_key">
             <td>{{ c.created_date?.slice(0, 10) }}</td>
             <td>{{ c.complaint_type }}</td>
-            <td class="description">{{ c.descriptor || '—' }}</td>
+            <td class="description">{{ c.resolution_description || c.descriptor || '—' }}</td>
             <td>{{ c.borough || '—' }}</td>
             <td>
               <span class="status-pill" :class="statusClass(c.status)">{{ c.status || '—' }}</span>
