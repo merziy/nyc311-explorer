@@ -124,6 +124,7 @@ def serialize_complaint(complaint: Complaint) -> dict:
         "closed_date": complaint.closed_date.isoformat() if complaint.closed_date else None,
         "complaint_type": complaint.complaint_type,
         "descriptor": complaint.descriptor,
+        "resolution_description": complaint.resolution_description,
         "borough": complaint.borough.value if complaint.borough else None,
         "incident_zip": complaint.incident_zip,
         "agency": complaint.agency,

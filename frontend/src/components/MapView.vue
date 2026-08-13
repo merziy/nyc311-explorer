@@ -206,10 +206,14 @@ onMounted(() => {
     const popup = new maplibregl.Popup().setLngLat(e.lngLat).setHTML('Loading…').addTo(map)
     try {
       const c = await fetchComplaint(uniqueKey)
+      const body = c.resolution_description
+        || (c.status === 'Closed' ? 'No resolution notes recorded.' : 'Still open — no resolution notes yet.')
       popup.setHTML(`
-        <div style="font: 13px system-ui, sans-serif; max-width: 220px; line-height: 1.5;">
-          <div style="font-weight: 600; margin-bottom: 2px;">${escapeHtml(c.complaint_type)}</div>
-          <div>${escapeHtml(c.descriptor || 'No description')}</div>
+        <div style="font: 13px system-ui, sans-serif; max-width: 260px; line-height: 1.5;">
+          <div style="font-weight: 600; margin-bottom: 2px;">
+            ${escapeHtml(c.complaint_type)}${c.descriptor ? ' — ' + escapeHtml(c.descriptor) : ''}
+          </div>
+          <div>${escapeHtml(body)}</div>
           <div style="margin-top: 6px; color: var(--text); font-size: 12px;">
             ${escapeHtml(c.borough || '')} &middot; ${escapeHtml(c.status || '')}<br>
             ${c.created_date ? escapeHtml(c.created_date.slice(0, 10)) : ''}

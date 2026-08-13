@@ -19,6 +19,7 @@ class Complaint(db.Model):
     closed_date = db.Column(db.DateTime(timezone=True), nullable=True)
     complaint_type = db.Column(db.Text, nullable=False)
     descriptor = db.Column(db.Text, nullable=True)
+    resolution_description = db.Column(db.Text, nullable=True)
     borough = db.Column(
         db.Enum(
             Borough,
