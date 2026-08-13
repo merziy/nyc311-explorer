@@ -4,6 +4,9 @@ import { fetchComplaints } from '../api'
 
 const props = defineProps({
   filters: { type: Object, required: true },
+  // Element to watch for scroll position instead of window - for when this
+  // table sits inside its own scrollable panel rather than the page body.
+  scrollContainer: { type: Object, default: null },
 })
 
 const PAGE_SIZE = 100
@@ -36,7 +39,8 @@ async function loadPage(reset) {
 }
 
 function onScroll() {
-  scrollDepth.value = window.scrollY + window.innerHeight
+  const el = props.scrollContainer
+  scrollDepth.value = el ? el.scrollTop + el.clientHeight : window.scrollY + window.innerHeight
 }
 
 // Watches scrollDepth directly (not a derived near-bottom boolean): that
@@ -45,7 +49,9 @@ function onScroll() {
 // actually changing - so gating on the boolean would silently drop every
 // load after the first threshold crossing.
 watch(scrollDepth, (depth) => {
-  const nearBottom = document.documentElement.scrollHeight - depth < NEAR_BOTTOM_THRESHOLD
+  const el = props.scrollContainer
+  const scrollHeight = el ? el.scrollHeight : document.documentElement.scrollHeight
+  const nearBottom = scrollHeight - depth < NEAR_BOTTOM_THRESHOLD
   if (nearBottom) loadPage(false)
 })
 
@@ -55,13 +61,30 @@ watch(
   { deep: true },
 )
 
+// The scroll container may not be resolved yet on first mount (it's a
+// template ref on an ancestor element in the parent), so this attaches
+// reactively rather than once in onMounted - it self-corrects when the
+// prop changes from null to the real element instead of silently
+// listening on the wrong (or no) target forever.
+let attachedTo = null
+watch(
+  () => props.scrollContainer,
+  (container) => {
+    const target = container || window
+    if (attachedTo === target) return
+    attachedTo?.removeEventListener('scroll', onScroll)
+    attachedTo = target
+    attachedTo.addEventListener('scroll', onScroll)
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
-  window.addEventListener('scroll', onScroll)
   loadPage(true)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', onScroll)
+  attachedTo?.removeEventListener('scroll', onScroll)
 })
 
 function statusClass(status) {

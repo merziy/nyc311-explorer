@@ -7,11 +7,16 @@ import { useTheme } from '../composables/useTheme'
 import { fetchComplaintPoints, fetchBoroughSummary } from '../api'
 import AskBox from './AskBox.vue'
 import FilterBar from './FilterBar.vue'
+import ThemeToggle from './ThemeToggle.vue'
+import TopComplaintTypes from './TopComplaintTypes.vue'
+import ComplaintsTable from './ComplaintsTable.vue'
 
 const props = defineProps({
   filters: { type: Object, required: true },
 })
 const emit = defineEmits(['filters-change'])
+
+const leftPanel = ref(null)
 
 const LIGHT_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
 const DARK_STYLE = 'https://tiles.openfreemap.org/styles/dark'
@@ -293,9 +298,15 @@ watch(theme, () => {
   <div class="map-shell">
     <div ref="mapContainer" class="map-canvas"></div>
 
-    <div class="overlay overlay-left">
+    <div ref="leftPanel" class="overlay overlay-left">
+      <div class="app-title">
+        <h1>NYC 311 Explorer</h1>
+        <ThemeToggle />
+      </div>
       <AskBox />
       <FilterBar @change="emit('filters-change', $event)" />
+      <TopComplaintTypes :filters="filters" />
+      <ComplaintsTable :filters="filters" :scroll-container="leftPanel" />
     </div>
 
     <div class="overlay overlay-right card">
@@ -338,16 +349,23 @@ watch(theme, () => {
 
 <style scoped>
 .map-shell {
-  position: relative;
-  height: min(680px, 82vh);
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  position: fixed;
+  inset: 0;
 }
 .map-canvas {
   position: absolute;
   inset: 0;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.app-title h1 {
+  font-size: 20px;
+  letter-spacing: -0.3px;
 }
 
 .overlay {
@@ -362,7 +380,7 @@ watch(theme, () => {
 }
 .overlay-left {
   left: 16px;
-  width: 320px;
+  width: 400px;
   max-width: calc(100% - 32px);
 }
 .overlay-right {
@@ -455,7 +473,7 @@ watch(theme, () => {
 
 @media (max-width: 760px) {
   .map-shell {
-    height: auto;
+    position: static;
     display: flex;
     flex-direction: column;
   }
