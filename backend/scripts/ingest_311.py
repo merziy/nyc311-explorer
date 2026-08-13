@@ -9,7 +9,7 @@ and upserts by unique_key, so re-running is always safe.
 
 Uses keyset pagination (WHERE unique_key > last_seen), not offset pagination —
 Socrata's own docs warn that OFFSET gets slow past tens of thousands of rows,
-and even a 3-month pull is realistically a few hundred thousand rows.
+and even a 1-month pull is realistically several hundred thousand rows.
 
 Every page's WHERE and ORDER BY are both on unique_key alone - filtering and
 sorting on the same column is fast on Socrata's backend. Filtering by
@@ -44,7 +44,7 @@ from app.models import Borough, Complaint
 
 DATASET_URL = "https://data.cityofnewyork.us/resource/erm2-nwe9.json"
 PAGE_SIZE = 1000
-MONTHS_BACK = 3
+MONTHS_BACK = 1
 NYC_TZ = ZoneInfo("America/New_York")
 CHECKPOINT_FILE = Path(__file__).parent / ".ingest_311_checkpoint.json"
 MAX_RETRIES = 3
