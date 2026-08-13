@@ -1,10 +1,11 @@
 import json
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import anthropic
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.config import settings
 from app.extensions import limiter
@@ -46,10 +47,14 @@ EXTRACT_FILTER_TOOL = {
             "complaint_type": {
                 "type": "string",
                 "description": (
-                    "Exact complaint type to filter to, if the question names one "
-                    "(e.g. 'Noise - Residential'). Only meaningful with mode='list' — "
-                    "'summary' mode groups by complaint type, so filtering to one "
-                    "type first would be self-defeating."
+                    "A keyword or phrase describing the complaint category, if the "
+                    "question names one (e.g. 'noise', 'party', 'parking', or the "
+                    "exact category 'Noise - Residential' if you know it). Matched "
+                    "as a case-insensitive partial match against both the complaint "
+                    "type and descriptor, so an approximate term is fine — you don't "
+                    "need the exact official category string. Only meaningful with "
+                    "mode='list' — 'summary' mode groups by complaint type, so "
+                    "filtering to one type first would be self-defeating."
                 ),
             },
             "start": {
@@ -264,7 +269,17 @@ def ask():
     if filter_args.get("mode") == "list":
         complaint_type = filter_args.get("complaint_type")
         if complaint_type:
-            query = query.filter(Complaint.complaint_type == complaint_type)
+            # Claude's guess rarely matches the stored complaint_type verbatim
+            # (e.g. "Noise - Party" vs the real "Noise - Residential" / descriptor
+            # "Loud Music/Party") - require each word somewhere in either field,
+            # rather than the whole phrase as one substring.
+            for word in re.findall(r"\w+", complaint_type):
+                if len(word) <= 2:
+                    continue
+                term = f"%{word}%"
+                query = query.filter(
+                    or_(Complaint.complaint_type.ilike(term), Complaint.descriptor.ilike(term))
+                )
         rows = query.order_by(Complaint.created_date.desc()).limit(ASK_LIST_LIMIT).all()
         results = [serialize_complaint(c) for c in rows]
     else:
