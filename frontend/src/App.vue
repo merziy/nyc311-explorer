@@ -5,6 +5,7 @@ import TopComplaintTypes from './components/TopComplaintTypes.vue'
 import ComplaintsTable from './components/ComplaintsTable.vue'
 import AskBox from './components/AskBox.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
+import MapView from './components/MapView.vue'
 
 const filters = ref({ borough: '', complaint_type: '', start: '', end: '' })
 
@@ -21,6 +22,7 @@ function onFilterChange(newFilters) {
     </header>
     <AskBox />
     <FilterBar @change="onFilterChange" />
+    <MapView :filters="filters" />
     <TopComplaintTypes :filters="filters" />
     <ComplaintsTable :filters="filters" />
   </div>

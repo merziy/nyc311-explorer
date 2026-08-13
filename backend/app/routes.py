@@ -15,6 +15,8 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
 DEFAULT_SUMMARY_LIMIT = 10
+DEFAULT_POINTS_LIMIT = 2000
+MAX_POINTS_LIMIT = 5000
 NYC_TZ = ZoneInfo("America/New_York")
 
 ASK_MODEL = "claude-sonnet-5"
@@ -164,10 +166,16 @@ def complaints_summary():
     if error:
         return error
 
+    count = func.count(Complaint.unique_key)
+
+    if request.args.get("group_by") == "borough":
+        rows = query.with_entities(Complaint.borough, count.label("count")).group_by(Complaint.borough).all()
+        return jsonify(
+            {"boroughs": [{"borough": b.value, "count": c} for b, c in rows if b is not None]}
+        )
+
     limit = request.args.get("limit", DEFAULT_SUMMARY_LIMIT, type=int)
     limit = max(1, min(limit, MAX_LIMIT))
-
-    count = func.count(Complaint.unique_key)
     rows = (
         query.with_entities(Complaint.complaint_type, count.label("count"))
         .group_by(Complaint.complaint_type)
@@ -177,6 +185,41 @@ def complaints_summary():
     )
 
     return jsonify({"complaint_types": [{"complaint_type": ct, "count": c} for ct, c in rows]})
+
+
+@api_bp.get("/complaints/points")
+def complaints_points():
+    """Lat/long per complaint for map views (heatmap/clusters) - a lighter
+    payload than /api/complaints since map rendering doesn't need the full
+    serialized row, just enough to place and color a point."""
+    query, error = apply_borough_and_date_filters(Complaint.query)
+    if error:
+        return error
+
+    complaint_type = request.args.get("complaint_type")
+    if complaint_type:
+        query = query.filter(Complaint.complaint_type == complaint_type)
+
+    limit = request.args.get("limit", DEFAULT_POINTS_LIMIT, type=int)
+    limit = max(1, min(limit, MAX_POINTS_LIMIT))
+
+    rows = (
+        query.filter(Complaint.latitude.isnot(None), Complaint.longitude.isnot(None))
+        .with_entities(Complaint.unique_key, Complaint.latitude, Complaint.longitude, Complaint.complaint_type)
+        .order_by(Complaint.created_date.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return jsonify(
+        {
+            "results": [
+                {"unique_key": uk, "latitude": lat, "longitude": lon, "complaint_type": ct}
+                for uk, lat, lon, ct in rows
+            ],
+            "limit": limit,
+        }
+    )
 
 
 @api_bp.post("/ask")
