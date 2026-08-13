@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: nyc311-explorer-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SOCRATA_APP_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
