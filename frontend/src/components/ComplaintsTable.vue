@@ -4,6 +4,7 @@ import { fetchComplaints } from '../api'
 
 const props = defineProps({
   filters: { type: Object, required: true },
+  scrollContainer: { type: Object, default: null }, // see CLAUDE.md, "Frontend"
 })
 
 const PAGE_SIZE = 100
@@ -36,16 +37,15 @@ async function loadPage(reset) {
 }
 
 function onScroll() {
-  scrollDepth.value = window.scrollY + window.innerHeight
+  const el = props.scrollContainer
+  scrollDepth.value = el ? el.scrollTop + el.clientHeight : window.scrollY + window.innerHeight
 }
 
-// Watches scrollDepth directly (not a derived near-bottom boolean): that
-// boolean can stay true across several consecutive scroll events whenever
-// the user stays pinned near the bottom, and watch() only fires on a value
-// actually changing - so gating on the boolean would silently drop every
-// load after the first threshold crossing.
+// watches scrollDepth directly, not a derived near-bottom boolean - see CLAUDE.md, "Frontend"
 watch(scrollDepth, (depth) => {
-  const nearBottom = document.documentElement.scrollHeight - depth < NEAR_BOTTOM_THRESHOLD
+  const el = props.scrollContainer
+  const scrollHeight = el ? el.scrollHeight : document.documentElement.scrollHeight
+  const nearBottom = scrollHeight - depth < NEAR_BOTTOM_THRESHOLD
   if (nearBottom) loadPage(false)
 })
 
@@ -55,13 +55,26 @@ watch(
   { deep: true },
 )
 
+// attaches reactively rather than once in onMounted - see CLAUDE.md, "Frontend"
+let attachedTo = null
+watch(
+  () => props.scrollContainer,
+  (container) => {
+    const target = container || window
+    if (attachedTo === target) return
+    attachedTo?.removeEventListener('scroll', onScroll)
+    attachedTo = target
+    attachedTo.addEventListener('scroll', onScroll)
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
-  window.addEventListener('scroll', onScroll)
   loadPage(true)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', onScroll)
+  attachedTo?.removeEventListener('scroll', onScroll)
 })
 
 function statusClass(status) {
