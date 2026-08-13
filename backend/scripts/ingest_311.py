@@ -7,25 +7,8 @@ Standalone script, not part of the Flask request path — run manually:
 Pulls the last MONTHS_BACK months of "311 Service Requests" (dataset erm2-nwe9)
 and upserts by unique_key, so re-running is always safe.
 
-Uses keyset pagination (WHERE unique_key > last_seen), not offset pagination —
-Socrata's own docs warn that OFFSET gets slow past tens of thousands of rows,
-and even a 1-month pull is realistically several hundred thousand rows.
-
-Every page's WHERE and ORDER BY are both on unique_key alone - filtering and
-sorting on the same column is fast on Socrata's backend. Filtering by
-created_date while sorting by unique_key (a different column) forces an
-expensive server-side sort over the whole matched set and reliably times out
-past a few weeks of data, confirmed against the live API. So the MONTHS_BACK
-window is applied exactly once, in bootstrap_cursor(), which filters AND
-sorts on created_date (also same-column, also fast) to find the starting
-unique_key - after that, every subsequent page is pure same-column keyset
-pagination.
-
-unique_key is typed as Text in Socrata's schema, not Number, so the cursor is
-compared and ordered as a string. That's only safe because unique_key values
-within a recent, short (MONTHS_BACK) window share the same digit count, so
-lexicographic and numeric ordering agree - it would not hold for a pull
-spanning a digit-count boundary (e.g. many years back).
+See CLAUDE.md, "Ingestion" for why pagination is keyset-only on unique_key,
+why MONTHS_BACK is 1, and the checkpoint/retry behavior.
 """
 
 import json
@@ -107,10 +90,7 @@ def fetch_page(client: httpx.Client, last_unique_key: int) -> list[dict]:
 
 
 def bootstrap_cursor(client: httpx.Client, since: str) -> int:
-    """Finds the unique_key of the first complaint at or after `since`, filtering
-    and sorting both on created_date (fast, same column) rather than fetch_page's
-    unique_key-only approach - lets every later page skip the created_date filter
-    entirely and stay same-column too."""
+    """Finds the unique_key of the first complaint at or after `since` - see CLAUDE.md, "Ingestion"."""
     params = {
         "$where": f"created_date >= '{since}'",
         "$order": "created_date ASC",

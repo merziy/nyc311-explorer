@@ -9,5 +9,5 @@ COPY . .
 
 EXPOSE 8000
 
-# $PORT is set by the hosting platform (e.g. Render) at runtime; 8000 is the local docker-compose fallback.
+# see CLAUDE.md, "Deployment"
 CMD flask --app app.main db upgrade && gunicorn --bind 0.0.0.0:${PORT:-8000} app.main:app
