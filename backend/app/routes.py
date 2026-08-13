@@ -166,16 +166,10 @@ def complaints_summary():
     if error:
         return error
 
-    count = func.count(Complaint.unique_key)
-
-    if request.args.get("group_by") == "borough":
-        rows = query.with_entities(Complaint.borough, count.label("count")).group_by(Complaint.borough).all()
-        return jsonify(
-            {"boroughs": [{"borough": b.value, "count": c} for b, c in rows if b is not None]}
-        )
-
     limit = request.args.get("limit", DEFAULT_SUMMARY_LIMIT, type=int)
     limit = max(1, min(limit, MAX_LIMIT))
+
+    count = func.count(Complaint.unique_key)
     rows = (
         query.with_entities(Complaint.complaint_type, count.label("count"))
         .group_by(Complaint.complaint_type)
@@ -185,6 +179,14 @@ def complaints_summary():
     )
 
     return jsonify({"complaint_types": [{"complaint_type": ct, "count": c} for ct, c in rows]})
+
+
+@api_bp.get("/complaints/<int:unique_key>")
+def get_complaint(unique_key):
+    complaint = Complaint.query.get(unique_key)
+    if complaint is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(serialize_complaint(complaint))
 
 
 @api_bp.get("/complaints/points")

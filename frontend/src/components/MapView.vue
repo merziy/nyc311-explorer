@@ -4,7 +4,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useTheme } from '../composables/useTheme'
-import { fetchComplaintPoints, fetchBoroughSummary } from '../api'
+import { fetchComplaintPoints, fetchComplaint } from '../api'
 import AskBox from './AskBox.vue'
 import FilterBar from './FilterBar.vue'
 import ThemeToggle from './ThemeToggle.vue'
@@ -28,14 +28,9 @@ const MODES = {
     desc: "Plots every complaint's lat/long directly, blended into hot zones by density.",
     layers: ['heat'],
   },
-  choropleth: {
-    label: 'Choropleth',
-    desc: 'Shades the five boroughs by total complaints matching the current filters. Click a borough for its count.',
-    layers: ['choropleth-fill', 'choropleth-line', 'choropleth-label'],
-  },
   clusters: {
     label: 'Clusters',
-    desc: 'Nearby complaints merge into a count badge that splits apart as you zoom in.',
+    desc: 'Nearby complaints merge into a count badge that splits apart as you zoom in. Click an individual point for its details.',
     layers: ['cluster-circles', 'cluster-count', 'unclustered-points'],
   },
 }
@@ -49,11 +44,16 @@ const error = ref(null)
 
 let map = null
 let ready = false
-let boroughsGeoJSON = null
 let pointsGeoJSON = { type: 'FeatureCollection', features: [] }
 
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
+function escapeHtml(value) {
+  const div = document.createElement('div')
+  div.textContent = value ?? ''
+  return div.innerHTML
 }
 
 function styleUrl() {
@@ -70,9 +70,6 @@ function applyModeVisibility() {
 }
 
 function addSourcesAndLayers() {
-  if (map.getSource('boroughs')) map.getSource('boroughs').setData(boroughsGeoJSON)
-  else map.addSource('boroughs', { type: 'geojson', data: boroughsGeoJSON })
-
   if (map.getSource('points')) map.getSource('points').setData(pointsGeoJSON)
   else map.addSource('points', { type: 'geojson', data: pointsGeoJSON })
 
@@ -105,46 +102,6 @@ function addSourcesAndLayers() {
           0.75, cssVar('--heat-3'),
           1, cssVar('--heat-4'),
         ],
-      },
-    })
-  }
-
-  if (!map.getLayer('choropleth-fill')) {
-    map.addLayer({
-      id: 'choropleth-fill',
-      type: 'fill',
-      source: 'boroughs',
-      paint: {
-        'fill-color': [
-          'interpolate', ['linear'], ['coalesce', ['get', 'count'], 0],
-          0, cssVar('--heat-1'),
-          1000, cssVar('--heat-4'),
-        ],
-        'fill-opacity': 0.55,
-      },
-      layout: { visibility: 'none' },
-    })
-    map.addLayer({
-      id: 'choropleth-line',
-      type: 'line',
-      source: 'boroughs',
-      paint: { 'line-color': cssVar('--text-h'), 'line-width': 1, 'line-opacity': 0.4 },
-      layout: { visibility: 'none' },
-    })
-    map.addLayer({
-      id: 'choropleth-label',
-      type: 'symbol',
-      source: 'boroughs',
-      layout: {
-        'text-field': ['format', ['get', 'name'], {}, '\n', {}, ['coalesce', ['get', 'count'], 0], { 'font-scale': 0.85 }],
-        'text-size': 13,
-        'text-font': ['Noto Sans Bold'],
-        visibility: 'none',
-      },
-      paint: {
-        'text-color': cssVar('--text-h'),
-        'text-halo-color': cssVar('--surface'),
-        'text-halo-width': 1.5,
       },
     })
   }
@@ -211,20 +168,11 @@ async function loadPoints() {
   map?.getSource('points-clustered')?.setData(pointsGeoJSON)
 }
 
-async function loadBoroughSummary() {
-  const data = await fetchBoroughSummary(props.filters)
-  const counts = Object.fromEntries(data.boroughs.map((b) => [b.borough, b.count]))
-  boroughsGeoJSON.features.forEach((f) => {
-    f.properties.count = counts[f.properties.name.toUpperCase()] || 0
-  })
-  map?.getSource('boroughs')?.setData(boroughsGeoJSON)
-}
-
 async function loadAll() {
   loading.value = true
   error.value = null
   try {
-    await Promise.all([loadPoints(), loadBoroughSummary()])
+    await loadPoints()
   } catch (e) {
     error.value = e.message
   } finally {
@@ -232,10 +180,7 @@ async function loadAll() {
   }
 }
 
-onMounted(async () => {
-  const res = await fetch('/nyc-boroughs.geojson')
-  boroughsGeoJSON = await res.json()
-
+onMounted(() => {
   map = new maplibregl.Map({
     container: mapContainer.value,
     style: styleUrl(),
@@ -256,15 +201,27 @@ onMounted(async () => {
     loadAll()
   })
 
-  map.on('click', 'choropleth-fill', (e) => {
-    const p = e.features[0].properties
-    new maplibregl.Popup()
-      .setLngLat(e.lngLat)
-      .setHTML(`<b>${p.name}</b><br>${p.count || 0} complaints`)
-      .addTo(map)
+  map.on('click', 'unclustered-points', async (e) => {
+    const uniqueKey = e.features[0].properties.unique_key
+    const popup = new maplibregl.Popup().setLngLat(e.lngLat).setHTML('Loading…').addTo(map)
+    try {
+      const c = await fetchComplaint(uniqueKey)
+      popup.setHTML(`
+        <div style="font: 13px system-ui, sans-serif; max-width: 220px; line-height: 1.5;">
+          <div style="font-weight: 600; margin-bottom: 2px;">${escapeHtml(c.complaint_type)}</div>
+          <div>${escapeHtml(c.descriptor || 'No description')}</div>
+          <div style="margin-top: 6px; color: var(--text); font-size: 12px;">
+            ${escapeHtml(c.borough || '')} &middot; ${escapeHtml(c.status || '')}<br>
+            ${c.created_date ? escapeHtml(c.created_date.slice(0, 10)) : ''}
+          </div>
+        </div>
+      `)
+    } catch {
+      popup.setHTML('Failed to load complaint details')
+    }
   })
-  map.on('mouseenter', 'choropleth-fill', () => (map.getCanvas().style.cursor = 'pointer'))
-  map.on('mouseleave', 'choropleth-fill', () => (map.getCanvas().style.cursor = ''))
+  map.on('mouseenter', 'unclustered-points', () => (map.getCanvas().style.cursor = 'pointer'))
+  map.on('mouseleave', 'unclustered-points', () => (map.getCanvas().style.cursor = ''))
 })
 
 onBeforeUnmount(() => {
@@ -322,14 +279,14 @@ watch(theme, () => {
       <p v-if="error" class="error">{{ error }}</p>
 
       <div class="legend">
-        <div v-if="mode !== 'clusters'" class="legend-scale">
-          <span>{{ mode === 'heatmap' ? 'Fewer' : 'Fewest' }}</span>
+        <div v-if="mode === 'heatmap'" class="legend-scale">
+          <span>Fewer</span>
           <div class="bar"></div>
-          <span>{{ mode === 'heatmap' ? 'More' : 'Most' }}</span>
+          <span>More</span>
         </div>
         <div v-else class="type-legend">
           <span><i class="dot dot-cluster"></i>Cluster (zoom in to split)</span>
-          <span><i class="dot dot-single"></i>Individual complaint</span>
+          <span><i class="dot dot-single"></i>Individual complaint (click for details)</span>
         </div>
       </div>
 

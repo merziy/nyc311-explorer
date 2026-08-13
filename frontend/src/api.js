@@ -29,21 +29,19 @@ export async function fetchSummary(filters, limit) {
   return response.json()
 }
 
-export async function fetchBoroughSummary(filters) {
-  const { complaint_type, ...summaryFilters } = filters
-  const query = buildQuery({ ...summaryFilters, group_by: 'borough' })
-  const response = await fetch(`${API_BASE}/complaints/summary?${query}`)
-  if (!response.ok) {
-    throw new Error(`fetchBoroughSummary failed: ${response.status}`)
-  }
-  return response.json()
-}
-
 export async function fetchComplaintPoints(filters, limit) {
   const query = buildQuery({ ...filters, limit })
   const response = await fetch(`${API_BASE}/complaints/points?${query}`)
   if (!response.ok) {
     throw new Error(`fetchComplaintPoints failed: ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function fetchComplaint(uniqueKey) {
+  const response = await fetch(`${API_BASE}/complaints/${uniqueKey}`)
+  if (!response.ok) {
+    throw new Error(`fetchComplaint failed: ${response.status}`)
   }
   return response.json()
 }
