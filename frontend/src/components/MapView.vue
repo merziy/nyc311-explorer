@@ -206,8 +206,7 @@ async function loadPoints() {
       geometry: { type: 'Point', coordinates: [p.longitude, p.latitude] },
     })),
   }
-  // getSource()?.setData() is safe even mid-style-load - isStyleLoaded() can
-  // stay false well after sources exist and accept updates, so don't gate on it.
+  // don't gate on map.isStyleLoaded() here - see CLAUDE.md, "Map view"
   map?.getSource('points')?.setData(pointsGeoJSON)
   map?.getSource('points-clustered')?.setData(pointsGeoJSON)
 }
@@ -244,9 +243,6 @@ onMounted(async () => {
     zoom: 9.3,
     attributionControl: false,
   })
-  // NavigationControl goes bottom-right, not top-right: the overlay panel
-  // already occupies that corner. No separate AttributionControl either -
-  // the required credit is the "Basemap © OpenStreetMap..." text below.
   map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
   if (import.meta.env.DEV) window.__map = map
 

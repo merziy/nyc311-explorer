@@ -4,9 +4,7 @@ import { fetchComplaints } from '../api'
 
 const props = defineProps({
   filters: { type: Object, required: true },
-  // Element to watch for scroll position instead of window - for when this
-  // table sits inside its own scrollable panel rather than the page body.
-  scrollContainer: { type: Object, default: null },
+  scrollContainer: { type: Object, default: null }, // see CLAUDE.md, "Frontend"
 })
 
 const PAGE_SIZE = 100
@@ -43,11 +41,7 @@ function onScroll() {
   scrollDepth.value = el ? el.scrollTop + el.clientHeight : window.scrollY + window.innerHeight
 }
 
-// Watches scrollDepth directly (not a derived near-bottom boolean): that
-// boolean can stay true across several consecutive scroll events whenever
-// the user stays pinned near the bottom, and watch() only fires on a value
-// actually changing - so gating on the boolean would silently drop every
-// load after the first threshold crossing.
+// watches scrollDepth directly, not a derived near-bottom boolean - see CLAUDE.md, "Frontend"
 watch(scrollDepth, (depth) => {
   const el = props.scrollContainer
   const scrollHeight = el ? el.scrollHeight : document.documentElement.scrollHeight
@@ -61,11 +55,7 @@ watch(
   { deep: true },
 )
 
-// The scroll container may not be resolved yet on first mount (it's a
-// template ref on an ancestor element in the parent), so this attaches
-// reactively rather than once in onMounted - it self-corrects when the
-// prop changes from null to the real element instead of silently
-// listening on the wrong (or no) target forever.
+// attaches reactively rather than once in onMounted - see CLAUDE.md, "Frontend"
 let attachedTo = null
 watch(
   () => props.scrollContainer,
