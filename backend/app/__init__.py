@@ -10,7 +10,7 @@ def create_app() -> Flask:
 
     db.init_app(app)
     migrate.init_app(app, db)
-    cors.init_app(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
+    cors.init_app(app, resources={r"/api/*": {"origins": settings.allowed_origins_list}})
     limiter.init_app(app)
 
     from app import models  # noqa: F401  (registers models with SQLAlchemy metadata)
