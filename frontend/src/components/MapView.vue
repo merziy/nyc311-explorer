@@ -2,6 +2,13 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl' // see CLAUDE.md, "Map view"
 import 'maplibre-gl/dist/maplibre-gl.css'
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+
+// see CLAUDE.md, "Map view" - MapLibre derives its worker URL from
+// import.meta.url at runtime, relative to wherever its own bundled code is
+// served from; Vite can't statically detect that to copy the file, so the
+// guessed URL 404s (silently falls back to index.html) unless set explicitly.
+maplibregl.setWorkerUrl(maplibreWorkerUrl)
 import { useTheme } from '../composables/useTheme'
 import { fetchComplaintPoints, fetchComplaint } from '../api'
 import AskBox from './AskBox.vue'
