@@ -446,6 +446,10 @@ watch(theme, () => {
     max-height: none;
     overflow-y: visible;
   }
+  .overlay-left {
+    max-width: none;
+    margin: 0 16px;
+  }
   .overlay-right {
     border-radius: 0;
     border-left: none;
