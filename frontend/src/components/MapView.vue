@@ -27,7 +27,7 @@ const POINTS_LIMIT = 3000
 const MODES = {
   heatmap: {
     label: 'Heatmap',
-    desc: "Plots every complaint's lat/long directly, blended into hot zones by density.",
+    desc: "Plots every complaint's lat/long directly, blended into hot zones by density. Switch to Clusters to click an individual complaint and see its 311 details.",
     layers: ['heat'],
   },
   clusters: {
