@@ -177,9 +177,7 @@ tbody tr:hover {
 }
 
 @media (max-width: 760px) {
-  /* borough is already visible via the active filter, and status is
-     secondary - drop both so Date/Type/Description fit without needing the
-     horizontal scroll below to be readable at all */
+  /* see CLAUDE.md, "Frontend" */
   .col-borough,
   .col-status {
     display: none;

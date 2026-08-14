@@ -2,15 +2,6 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl' // see CLAUDE.md, "Map view"
 import 'maplibre-gl/dist/maplibre-gl.css'
-
-// see CLAUDE.md, "Map view" - MapLibre derives its worker URL from
-// import.meta.url at runtime, relative to wherever its own bundled code is
-// served from; Vite can't statically detect that to bundle the file (nor its
-// own further static import of a sibling "shared" chunk), so the guessed URL
-// 404s (silently falls back to index.html) unless set explicitly. Both files
-// are copied verbatim into public/ by scripts/copy-maplibre-worker.mjs so
-// their relative import of each other still resolves.
-maplibregl.setWorkerUrl(`${import.meta.env.BASE_URL}maplibre-gl-worker.mjs`)
 import { useTheme } from '../composables/useTheme'
 import { fetchComplaintPoints, fetchComplaint } from '../api'
 import AskBox from './AskBox.vue'
@@ -18,6 +9,9 @@ import FilterBar from './FilterBar.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import TopComplaintTypes from './TopComplaintTypes.vue'
 import ComplaintsTable from './ComplaintsTable.vue'
+
+// see CLAUDE.md, "Map view" - points setWorkerUrl at the public/ copy directly
+maplibregl.setWorkerUrl(`${import.meta.env.BASE_URL}maplibre-gl-worker.mjs`)
 
 const props = defineProps({
   filters: { type: Object, required: true },
