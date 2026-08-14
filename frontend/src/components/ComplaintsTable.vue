@@ -124,7 +124,7 @@ function statusClass(status) {
 }
 table {
   width: 100%;
-  min-width: 720px;
+  min-width: 460px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -142,10 +142,20 @@ td {
   color: var(--text-h);
   white-space: nowrap;
 }
+td.type {
+  white-space: normal;
+  min-width: 90px;
+}
 td.description {
   white-space: normal;
   min-width: 200px;
   color: var(--text);
+}
+/* see CLAUDE.md, "Frontend" - the overlay panel is a fixed ~400px card at
+   every viewport width, not just mobile, so these stay hidden unconditionally */
+.col-borough,
+.col-status {
+  display: none;
 }
 tbody tr:last-child td {
   border-bottom: none;
@@ -174,20 +184,5 @@ tbody tr:hover {
   margin-top: 12px;
   font-size: 14px;
   color: var(--text);
-}
-
-@media (max-width: 760px) {
-  /* see CLAUDE.md, "Frontend" */
-  .col-borough,
-  .col-status {
-    display: none;
-  }
-  table {
-    min-width: 0;
-  }
-  td.type {
-    white-space: normal;
-    min-width: 90px;
-  }
 }
 </style>
