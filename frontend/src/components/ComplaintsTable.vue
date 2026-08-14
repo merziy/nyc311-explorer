@@ -94,17 +94,17 @@ function statusClass(status) {
             <th>Date</th>
             <th>Type</th>
             <th>Description</th>
-            <th>Borough</th>
-            <th>Status</th>
+            <th class="col-borough">Borough</th>
+            <th class="col-status">Status</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="c in results" :key="c.unique_key">
             <td>{{ c.created_date?.slice(0, 10) }}</td>
-            <td>{{ c.complaint_type }}</td>
+            <td class="type">{{ c.complaint_type }}</td>
             <td class="description">{{ c.resolution_description || c.descriptor || '—' }}</td>
-            <td>{{ c.borough || '—' }}</td>
-            <td>
+            <td class="col-borough">{{ c.borough || '—' }}</td>
+            <td class="col-status">
               <span class="status-pill" :class="statusClass(c.status)">{{ c.status || '—' }}</span>
             </td>
           </tr>
@@ -124,6 +124,7 @@ function statusClass(status) {
 }
 table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -173,5 +174,22 @@ tbody tr:hover {
   margin-top: 12px;
   font-size: 14px;
   color: var(--text);
+}
+
+@media (max-width: 760px) {
+  /* borough is already visible via the active filter, and status is
+     secondary - drop both so Date/Type/Description fit without needing the
+     horizontal scroll below to be readable at all */
+  .col-borough,
+  .col-status {
+    display: none;
+  }
+  table {
+    min-width: 0;
+  }
+  td.type {
+    white-space: normal;
+    min-width: 90px;
+  }
 }
 </style>
