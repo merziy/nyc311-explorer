@@ -7,6 +7,8 @@ from app.extensions import cors, db, limiter, migrate
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = settings.database_url
+    # see CLAUDE.md, "App factory pattern" - Neon's autosuspend kills idle connections server-side
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "pool_recycle": 280}
 
     db.init_app(app)
     migrate.init_app(app, db)
