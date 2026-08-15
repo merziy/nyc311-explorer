@@ -18,6 +18,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
+from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert
 
 from app import create_app
@@ -127,6 +128,12 @@ def upsert_batch(rows: list[dict]) -> None:
     db.session.commit()
 
 
+def prune_old_rows(cutoff: datetime) -> int:
+    result = db.session.execute(delete(Complaint).where(Complaint.created_date < cutoff))
+    db.session.commit()
+    return result.rowcount
+
+
 def run() -> None:
     total = 0
 
@@ -158,8 +165,11 @@ def run() -> None:
                 if len(raw_rows) < PAGE_SIZE:
                     break
 
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30 * MONTHS_BACK)
+            pruned = prune_old_rows(cutoff)
+
     clear_checkpoint()
-    print(f"Done. {total} rows upserted.")
+    print(f"Done. {total} rows upserted, {pruned} rows pruned older than {cutoff.date()}.")
 
 
 if __name__ == "__main__":
