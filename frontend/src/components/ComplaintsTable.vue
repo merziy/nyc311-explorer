@@ -151,8 +151,7 @@ td.description {
   min-width: 200px;
   color: var(--text);
 }
-/* see CLAUDE.md, "Frontend" - the overlay panel is a fixed ~400px card at
-   every viewport width, not just mobile, so these stay hidden unconditionally */
+/* see CLAUDE.md, "Frontend" */
 .col-borough,
 .col-status {
   display: none;
