@@ -122,6 +122,19 @@ def apply_borough_and_date_filters(query, params=None):
     return query, None
 
 
+def apply_complaint_type_filter(query, complaint_type: str | None):
+    """Fuzzy per-word match shared by /api/complaints, /api/complaints/points,
+    and /api/ask - see CLAUDE.md, "POST /api/ask"."""
+    if not complaint_type:
+        return query
+    for word in re.findall(r"\w+", complaint_type):
+        if len(word) <= 2:
+            continue
+        term = f"%{word}%"
+        query = query.filter(or_(Complaint.complaint_type.ilike(term), Complaint.descriptor.ilike(term)))
+    return query
+
+
 def serialize_complaint(complaint: Complaint) -> dict:
     return {
         "unique_key": complaint.unique_key,
@@ -145,9 +158,7 @@ def list_complaints():
     if error:
         return error
 
-    complaint_type = request.args.get("complaint_type")
-    if complaint_type:
-        query = query.filter(Complaint.complaint_type == complaint_type)
+    query = apply_complaint_type_filter(query, request.args.get("complaint_type"))
 
     limit = request.args.get("limit", DEFAULT_LIMIT, type=int)
     limit = max(1, min(limit, MAX_LIMIT))
@@ -204,9 +215,7 @@ def complaints_points():
     if error:
         return error
 
-    complaint_type = request.args.get("complaint_type")
-    if complaint_type:
-        query = query.filter(Complaint.complaint_type == complaint_type)
+    query = apply_complaint_type_filter(query, request.args.get("complaint_type"))
 
     limit = request.args.get("limit", DEFAULT_POINTS_LIMIT, type=int)
     limit = max(1, min(limit, MAX_POINTS_LIMIT))
@@ -267,16 +276,7 @@ def ask():
         return error
 
     if filter_args.get("mode") == "list":
-        complaint_type = filter_args.get("complaint_type")
-        if complaint_type:
-            # see CLAUDE.md, "POST /api/ask"
-            for word in re.findall(r"\w+", complaint_type):
-                if len(word) <= 2:
-                    continue
-                term = f"%{word}%"
-                query = query.filter(
-                    or_(Complaint.complaint_type.ilike(term), Complaint.descriptor.ilike(term))
-                )
+        query = apply_complaint_type_filter(query, filter_args.get("complaint_type"))
         rows = query.order_by(Complaint.created_date.desc()).limit(ASK_LIST_LIMIT).all()
         results = [serialize_complaint(c) for c in rows]
     else:
