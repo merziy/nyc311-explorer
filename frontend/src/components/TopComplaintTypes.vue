@@ -12,16 +12,22 @@ const error = ref(null)
 
 const maxCount = computed(() => Math.max(1, ...complaintTypes.value.map((ct) => ct.count)))
 
+// see CLAUDE.md, "Frontend" - discards a response if a newer filter has
+// already superseded it, so an out-of-order reply can't overwrite fresh data
+let requestId = 0
+
 async function load() {
+  const id = ++requestId
   loading.value = true
   error.value = null
   try {
     const data = await fetchSummary(props.filters, 10)
+    if (id !== requestId) return
     complaintTypes.value = data.complaint_types
   } catch (e) {
-    error.value = e.message
+    if (id === requestId) error.value = e.message
   } finally {
-    loading.value = false
+    if (id === requestId) loading.value = false
   }
 }
 

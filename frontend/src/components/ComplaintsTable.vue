@@ -17,22 +17,27 @@ const loading = ref(false)
 const error = ref(null)
 const scrollDepth = ref(0)
 
-async function loadPage(reset) {
-  if (loading.value) return
-  if (!reset && results.value.length > 0 && results.value.length >= total.value) return
+// see CLAUDE.md, "Frontend" - lets a filter change supersede an in-flight
+// page load instead of being silently dropped by it
+let requestId = 0
 
+async function loadPage(reset) {
+  if (!reset && (loading.value || (results.value.length > 0 && results.value.length >= total.value))) return
+
+  const id = ++requestId
   loading.value = true
   error.value = null
   try {
     const requestOffset = reset ? 0 : offset.value
     const data = await fetchComplaints(props.filters, PAGE_SIZE, requestOffset)
+    if (id !== requestId) return
     results.value = reset ? data.results : results.value.concat(data.results)
     offset.value = requestOffset + data.results.length
     total.value = data.total
   } catch (e) {
-    error.value = e.message
+    if (id === requestId) error.value = e.message
   } finally {
-    loading.value = false
+    if (id === requestId) loading.value = false
   }
 }
 

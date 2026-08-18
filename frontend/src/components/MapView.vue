@@ -47,6 +47,8 @@ const error = ref(null)
 let map = null
 let ready = false
 let pointsGeoJSON = { type: 'FeatureCollection', features: [] }
+// see CLAUDE.md, "Frontend" - discards a response superseded by a newer filter
+let requestId = 0
 
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
@@ -155,8 +157,9 @@ function addSourcesAndLayers() {
   applyModeVisibility()
 }
 
-async function loadPoints() {
+async function loadPoints(id) {
   const data = await fetchComplaintPoints(props.filters, POINTS_LIMIT)
+  if (id !== requestId) return
   pointsGeoJSON = {
     type: 'FeatureCollection',
     features: data.results.map((p) => ({
@@ -171,14 +174,15 @@ async function loadPoints() {
 }
 
 async function loadAll() {
+  const id = ++requestId
   loading.value = true
   error.value = null
   try {
-    await loadPoints()
+    await loadPoints(id)
   } catch (e) {
-    error.value = e.message
+    if (id === requestId) error.value = e.message
   } finally {
-    loading.value = false
+    if (id === requestId) loading.value = false
   }
 }
 
